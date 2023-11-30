@@ -1,11 +1,24 @@
-﻿
-#include "vk_engine.h"
+﻿#include "vk_engine.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
 #include <vk_types.h>
 #include <vk_initializers.h>
+
+// bootstrap library
+#include "VkBootstrap.h"
+
+#define VK_CHECK(x)                                                     \
+	do                                                                  \
+	{                                                                   \
+		VkResult err = x;                                               \
+		if (err)                                                        \
+		{                                                               \
+			std::cout << "Detected Vulkan error: " << err << std::endl; \
+			abort();                                                    \
+		}                                                               \
+	} while (0)
 
 void VulkanEngine::init()
 {
@@ -22,9 +35,53 @@ void VulkanEngine::init()
 		_windowExtent.height,
 		window_flags);
 
+	// load the core Vulkan structures
+	init_vulkan();
+
 	// everything went fine
 	_isInitialized = true;
 }
+
+void VulkanEngine::init_vulkan()
+{
+	vkb::InstanceBuilder builder;
+
+	// make the Vulkan instance, with basic debug features
+	auto inst_ret = builder.set_app_name("Example Vulkan Application")
+						.request_validation_layers(true)
+						.require_api_version(1, 1, 0)
+						.use_default_debug_messenger()
+						.build();
+
+	vkb::Instance vkb_inst = inst_ret.value();
+
+	// store the instance
+	_instance = vkb_inst.instance;
+	// store the debug messenger
+	_debug_messenger = vkb_inst.debug_messenger;
+
+	// get the surface of the window we opened with SDL
+	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
+
+	// use vkbootstrap to select a GPU.
+	// We want a GPU that can write to the SDL surface and supports Vulkan 1.1
+	vkb::PhysicalDeviceSelector selector{vkb_inst};
+	vkb::PhysicalDevice physicalDevice = selector
+											 .set_minimum_version(1, 1)
+											 .set_surface(_surface)
+											 .select()
+											 .value();
+
+	// create the final Vulkan device
+	vkb::DeviceBuilder deviceBuilder{physicalDevice};
+
+	vkb::Device vkbDevice = deviceBuilder.build().value();
+
+	// Get the VkDevice handle used in the rest of a Vulkan application
+	_device = vkbDevice.device;
+	_chosenGPU = physicalDevice.physical_device;
+}
+
 void VulkanEngine::cleanup()
 {
 	if (_isInitialized)
