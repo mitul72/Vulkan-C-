@@ -9,6 +9,16 @@
 class VulkanEngine
 {
 public:
+	VkRenderPass _renderPass;
+
+	std::vector<VkFramebuffer> _framebuffers;
+
+	VkQueue _graphicsQueue;		   // queue we will submit to
+	uint32_t _graphicsQueueFamily; // family of that queue
+
+	VkCommandPool _commandPool;			// the command pool for our commands
+	VkCommandBuffer _mainCommandBuffer; // the buffer we will record into
+
 	// swapchain
 	VkSwapchainKHR _swapchain; // from other articles
 
@@ -49,4 +59,7 @@ public:
 private:
 	void init_vulkan();
 	void init_swapchain();
+	void init_commands();
+	void init_default_renderpass();
+	void init_framebuffers();
 };
